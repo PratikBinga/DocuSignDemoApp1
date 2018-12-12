@@ -15,7 +15,8 @@ namespace DocuSignDemo.Controllers
 {
     public class DocusignDemooController : ApiController
     {
-        public void Post(HttpRequestMessage request)
+        [HttpPost]
+        public void WebhookDocuSignResponse(HttpRequestMessage request)
         {
             string directorypath = HttpContext.Current.Server.MapPath("~/App_Data/" + "Files/");
             if (!Directory.Exists(directorypath))
@@ -29,7 +30,7 @@ namespace DocuSignDemo.Controllers
 
             // flush every 20 seconds as you do it
             File.AppendAllText(directorypath + "log.txt", sb.ToString());
-          
+
 
 
 
@@ -40,43 +41,45 @@ namespace DocuSignDemo.Controllers
             File.AppendAllText(directorypath + "XMLlog.txt", sb.ToString());
             sb.Clear();
 
-            //    var mgr = new XmlNamespaceManager(xmldoc.NameTable);
-            //    mgr.AddNamespace("a", "http://www.docusign.net/API/3.0");
+            var mgr = new XmlNamespaceManager(xmldoc.NameTable);
+            mgr.AddNamespace("a", "http://www.docusign.net/API/3.0");
 
-            //    XmlNode envelopeStatus = xmldoc.SelectSingleNode("//a:EnvelopeStatus", mgr);
-            //    XmlNode envelopeId = envelopeStatus.SelectSingleNode("//a:EnvelopeID", mgr);
-            //    XmlNode status = envelopeStatus.SelectSingleNode("./a:Status", mgr);
-            //    string envId = envelopeId.ToString();
-            //    if (envelopeId != null)
-            //    {
-            //        //System.IO.File.WriteAllText(HttpContext.Current.Server.MapPath("~/Documents/" +
-            //        //    envelopeId.InnerText + "_" + status.InnerText + "_" + Guid.NewGuid() + ".xml"), xmldoc.OuterXml);
-            //    }
+            XmlNode envelopeStatus = xmldoc.SelectSingleNode("//a:EnvelopeStatus", mgr);
+            XmlNode envelopeId = envelopeStatus.SelectSingleNode("//a:EnvelopeID", mgr);
+            XmlNode status = envelopeStatus.SelectSingleNode("./a:Status", mgr);
+            string envId = envelopeId.InnerText;
+            if (envelopeId != null)
+            {
+                //System.IO.File.WriteAllText(HttpContext.Current.Server.MapPath("~/Documents/" +
+                //    envelopeId.InnerText + "_" + status.InnerText + "_" + Guid.NewGuid() + ".xml"), xmldoc.OuterXml);
+            }
 
-            //    // Loop through the DocumentPDFs element, storing each signed document.
+            // Loop through the DocumentPDFs element, storing each signed document.
 
-            //    XmlNode docs = xmldoc.SelectSingleNode("//a:DocumentPDFs", mgr);
-            //    foreach (XmlNode doc in docs.ChildNodes)
-            //    {
-            //        string documentName = doc.ChildNodes[0].InnerText; // pdf.SelectSingleNode("//a:Name", mgr).InnerText;
-            //        string documentId = doc.ChildNodes[2].InnerText; // pdf.SelectSingleNode("//a:DocumentID", mgr).InnerText;
-            //        string byteStr = doc.ChildNodes[1].InnerText; // pdf.SelectSingleNode("//a:PDFBytes", mgr).InnerText;
+            XmlNode docs = xmldoc.SelectSingleNode("//a:DocumentPDFs", mgr);
+            foreach (XmlNode doc in docs.ChildNodes)
+            {
+                string documentName = doc.ChildNodes[0].InnerText; // pdf.SelectSingleNode("//a:Name", mgr).InnerText;
+                string documentId = doc.ChildNodes[2].InnerText; // pdf.SelectSingleNode("//a:DocumentID", mgr).InnerText;
+                string byteStr = doc.ChildNodes[1].InnerText; // pdf.SelectSingleNode("//a:PDFBytes", mgr).InnerText;
+                byte[] bytArray = Encoding.ASCII.GetBytes(byteStr);
 
-            //        System.IO.File.WriteAllText(HttpContext.Current.Server.MapPath("~/Documents/" + envelopeId.InnerText + "_" + documentId + "_" + documentName), byteStr);
-            //    }
+                // System.IO.File.WriteAllText(HttpContext.Current.Server.MapPath("~/Documents/" + envelopeId.InnerText + "_" + documentId + "_" + documentName), byteStr);
+                System.IO.File.WriteAllText(HttpContext.Current.Server.MapPath("~/Documents/" + envelopeId.InnerText + "_" + documentId + "_" + documentName), System.Convert.ToBase64String(bytArray));
+            }
 
-            //    if (status.InnerText == "Completed")
-            //    {
-            //        // purge the envelope if status is completed.
-            //        EnvelopesApi obj = new EnvelopesApi();
-            //        DocuSign.eSign.Model.Envelope item = new DocuSign.eSign.Model.Envelope();
-            //        item.PurgeState = "documents_and_metadata_queued";
-            //        item.EnvelopeId = envId;
-            //        EnvelopeUpdateSummary envelopeUpdateSummary = obj.Update("7360016", item.EnvelopeId, null, null);
+            if (status.InnerText == "Completed")
+            {
+                // purge the envelope if status is completed.
+                EnvelopesApi obj = new EnvelopesApi();
+                Envelope envInfo = obj.GetEnvelope("7360016", envId);
+                envInfo.PurgeState = "documents_and_metadata_queued";
+                envInfo.EnvelopeId = envId;
+                EnvelopeUpdateSummary envelopeUpdateSummary = obj.Update("7360016", envInfo.EnvelopeId, null, null);
 
 
-            //    }
-        }
+            }
         }
     }
+}
 
